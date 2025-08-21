@@ -12,7 +12,6 @@ format:
     number-sections: true
 
 editor: visual
-
 ---
 
 # The Objective
@@ -132,7 +131,6 @@ rec <- recipe(matrixScore ~ ., data = training_set) |>
     # since the 'Other' option in race_6 is manually typed I would regard it all a other even though we might grouped it in other manner
     race_6 = factor(race_6),
     
-    
     sex = factor(sex)
     
 
@@ -160,8 +158,6 @@ view(bake(prep(rec, training_set = training_data), NULL))
 
 
 ```
-
-
 
 {in this part we would add the acedemic background that helped us choose our feature and to desgin them in the way we will}
 

@@ -70,6 +70,7 @@ prompts_given <- data.frame(
 #School need to be re arrange by order 
 levels(factor(training_set$school))
 
+
 # Income need to be re arrange by order 
 levels(factor(training_set$Income))
 
@@ -154,6 +155,7 @@ view(bake(prep(rec, training_set = training_data), NULL))
 
 
 # ------ Validation ----------
+
 
 
 
