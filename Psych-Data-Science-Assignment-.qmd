@@ -1,0 +1,104 @@
+---
+title: "Psych Data Science Lab @ BGU 2025 -Group GLAS"
+author: "Gilad Sarusi, Lior Lipa, Adi Bitan and Sivan"
+output: 
+  pagedown::html_paged:
+      self_contained: true
+      paged-footnotes: true
+      
+format: 
+  html:
+    toc: true
+    number-sections: true
+
+editor: visual
+
+---
+
+# The Objective
+
+Can chains of spontaneous thought reveal mental health? In this competition, you'll work with rich psychological data to predict depression levels from free association patterns and demographic variables.
+
+Using a dataset of participants who completed a depression questionnaire (CES-D) and a 10-round free association task, our goal is to predict each participant’s depression score using their unique trails of thought and background information.
+
+For details about the challenge visit it's Kaggle page: [Depression Prediction Competitio](https://www.kaggle.com/competitions/depression-prediction/overview)
+
+#Feature Engineering
+
+{in this part we would add the acedemic background that helped us choose our feature and to desgin them in the way we will}
+
+First and foremost, we will load th data.
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+
+training_set <- read.csv('./data/ds_train_full.csv')
+
+# DO NOT TOUCH THIS ONE! 
+test_set <- read.csv('./data/ds_test_full.csv')
+
+# The prompt given to the subjects in each block:
+prompts_given <- data.frame(
+  prompt = c(
+  "log",
+  "orb",
+  "extension",
+  "synthesizer",
+  "treadmill",
+  "valet",
+  "toss",
+  "testimony",
+  "mow",
+  "forge"),
+  order = 1:10
+)
+
+
+
+
+# Since each subject goes through 10 blocks that has 10 steps it means that our training set consists of 51800/100 subjects (518)
+
+# Since that this is Goal oriented challange where the justification of using one method instead of the other is relevant, we would use two method to split our traning set for validationL bootstrap (enable us to asses confidence) and Kfold CV (the standard and straightforward approach)
+
+# NOTICE, the rows are not independent of one another- each subject has 100 rows so when splitting we need to ensure there's no data linkage. 
+
+#Another consideration is class balance, we'll need to think whether or not we want strata sampling in bootstraps, meaning is there's any meaningful classes in training sets that might tilt the results towards one way due to unbalanced sampling in validation set vs the remaining set 
+
+# ------ Pre-processing
+
+#School need to be re arrange by order 
+table(training_set$school)
+
+# Income need to be re arrange by order 
+levels(factor(training_set$Income))
+
+
+hist(training_set$Age)
+
+
+
+
+
+
+
+
+
+# ------ Validation. ----------
+
+
+
+```
+
+
+
+{in this part we would add the acedemic background that helped us choose our feature and to desgin them in the way we will}
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
