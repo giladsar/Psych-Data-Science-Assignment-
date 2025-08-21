@@ -68,23 +68,94 @@ prompts_given <- data.frame(
 # ------ Pre-processing
 
 #School need to be re arrange by order 
-table(training_set$school)
+levels(factor(training_set$school))
+
 
 # Income need to be re arrange by order 
 levels(factor(training_set$Income))
 
 
 hist(training_set$Age)
+education_levels <- c(
+  "Less than high school degree",
+  "High school graduate (high school diploma or equivalent including GED)",
+  "Some college but no degree",
+  "Associate degree in college (2-year)",
+  "Bachelor's degree in college (4-year)",
+  "Master's degree",
+  "Professional degree (JD, MD)",
+  "Doctoral degree"
+)
+income_range_levels <- c(
+  "Less than $10,000",
+  "$10,000 to $19,999",
+  "$20,000 to $29,999",
+  "$30,000 to $39,999",
+  "$40,000 to $49,999",
+  "$50,000 to $59,999",
+  "$60,000 to $69,999",
+  "$70,000 to $79,999",
+  "$80,000 to $89,999",
+  "$90,000 to $99,999",
+  "$100,000 to $149,999",
+  "$150,000 or more"
+)
+
+
+rec <- recipe(matrixScore ~ ., data = training_set) |>
+  step_rename(
+    school_text = school,
+    Income_text = Income
+  ) |>
+  step_mutate(
+    
+    
+    #Setting the leveled vector  for school 
+    school_text = factor(school_text,
+                         levels = education_levels,
+                         ordered = TRUE),
+    # Creating an ordered school numeric column
+    school_level = as.integer(school_text),
+    
+    #--------do the same for income: -----------
+    Income_text = factor(Income_text,
+                         levels=income_range_levels,
+                         ordered = TRUE),
+    Income_level = as.integer(Income_text),
+    
+    #------- Factoring the needed columns -------
+    race_1 = factor(race_1),
+    race_2 = factor(race_2),
+    race_3 = factor(race_3),
+    race_4 = factor(race_4),
+    race_5 = factor(race_5),
+    # since the 'Other' option in race_6 is manually typed I would regard it all a other even though we might grouped it in other manner
+    race_6 = factor(race_6),
+    
+    
+    sex = factor(sex)
+    
+
+
+  ) |>
+  step_rm(
+    Income_text,
+    Income_level
+  ) 
+
+  
 
 
 
 
+# See if the steps done correctly 
+view(bake(prep(rec, training_set = training_data), NULL))
 
 
 
 
+# ------ Validation ----------
 
-# ------ Validation. ----------
 
 
 
