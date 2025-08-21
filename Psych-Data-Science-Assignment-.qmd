@@ -31,6 +31,7 @@ First and foremost, we will load th data.
 ```{r}
 library(tidyverse)
 library(tidymodels)
+library(quanteda)
 
 training_set <- read.csv('./data/ds_train_full.csv')
 
@@ -99,6 +100,111 @@ income_range_levels <- c(
   "$100,000 to $149,999",
   "$150,000 or more"
 )
+
+#-------------------- Corpus, Embedding and Dictionaries ----------------
+
+# Since   "docnames must be unique" we would create a word_id for every unique word
+
+training_corpus <- training_set |>
+  mutate(word_id =row_number()) |>  
+  corpus(docid_field = "word_id",
+         text_field="word")
+
+
+# In order to use word_count methods we need that each participant's words (all 100 words) assign to him would be regarded as a text (let's say treatign his chains of words as one big 'tweet') then we would be able to count the the negative words in his chain
+
+training_corpus_per_subject <- training_set |>
+  group_by(ID) |>
+  summarise(words_all = paste(word, collapse = " "), .groups = "drop") |>
+  ungroup() |>  
+  corpus(docid_field = "ID",
+         text_field="words_all") 
+
+
+
+# Tokenazation 
+
+#due to the nature of the task I don't see aby reason to stems or lemmas, the same goes for not using N-Gram - the task's output is one-word each step
+
+
+#Tokezating the words with the current data structure might be usful later 
+training_tokens <- training_corpus |>
+  tokens(  
+    remove_punct = T,
+    remove_symbols = T,
+    remove_numbers = T) |>
+  tokens_tolower()
+
+
+neg_sentiment_words <-read.table("data/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt",
+                                 header = TRUE, sep = "\t") |>
+  mutate(word = aback,
+         sentiment = factor(anger),
+         associate= X0) |>
+  select(-aback,-anger,-X0) |>
+  filter(sentiment== "negative" & associate == "1")
+
+
+#------------------ Feature I - Negative Word Count -----------------  
+
+training_corpus_per_subject_token_dfm <- training_corpus_per_subject  |>
+  tokens(  
+    remove_punct = T,
+    remove_symbols = T,
+    remove_numbers = T) |>
+  tokens_tolower() |>
+  dfm()
+
+
+training_perS_neg_count <-training_corpus_per_subject_token_dfm |>
+  dfm_lookup(
+    dictionary(
+      list(
+        negative_count = neg_sentiment_words$word)
+    )
+  ) 
+
+# let's add it to our training set
+
+training_set <- training_set |>
+  left_join(
+    training_perS_neg_count |>
+      convert("data.frame") |>
+      rename(ID = doc_id) |>
+      mutate(ID = as.numeric(ID)),
+    by = "ID")
+
+#Sanity Check:
+
+table(training_set$negative_count)
+
+hist(training_set$negative_count)\
+
+#VERY NICE (BORAT VOICING)!!! 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#--------------- Recipe ---------------------
+
 
 
 rec <- recipe(matrixScore ~ ., data = training_set) |>
