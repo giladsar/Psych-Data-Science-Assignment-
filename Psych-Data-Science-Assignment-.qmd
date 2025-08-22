@@ -32,7 +32,10 @@ First and foremost, we will load th data.
 library(tidyverse)
 library(tidymodels)
 library(quanteda)
-
+library(embedplyr)
+library(pdftools)
+library(stringr)
+library(text)
 training_set <- read.csv('./data/ds_train_full.csv')
 
 # DO NOT TOUCH THIS ONE! 
@@ -178,26 +181,113 @@ training_set <- training_set |>
 
 table(training_set$negative_count)
 
-hist(training_set$negative_count)\
+hist(training_set$negative_count)
 
 #VERY NICE (BORAT VOICING)!!! 
 
 
+# -------------- Feature II - Embedded CCR (CES-D) -----------------
+
+# The heavy lifting starts now! Let's enter the vector-multidimentional words 
+
+# First I would fetch CES-D questioneare using 'stringr' and 'pdftools' packages:
+
+CES_D_items <- pdf_text("./data/epidemiologic-studies-scale.pdf") |>
+  str_split("\\n(?=[0-9]+\\.)")  |>
+  unlist() |>
+  # keep only lines that start with number + dot
+  str_subset("^[0-9]+\\.") |>
+  # clean whitespace
+  str_trim() |>
+  # remove the leading number + dot + space, keep only the text
+  str_remove("^[0-9]+\\.\\s*") |>
+  tibble::tibble(item_number = 1:20,     
+                 item_text   = _) |>
+  
+  # Dealing with reversed items 
+  
+  mutate(item_text = case_when(
+    item_number == 4 ~ "I felt I was not as good as other people.",
+    item_number == 8 ~ "I didn't felt hopeful about the future.",
+    item_number == 12 ~ "I wasn't happy.",
+    item_number == 16 ~ "I didn't enjoyed life.",
+    
+    #. Fixing Bad Parsing 
+    item_number == 20 ~ "I could not get “going.",
+    TRUE ~ item_text
+  )) |>
+  select(item_text) |>
+  pull()
+
+sbert_embeddings <- function(texts) {
+  textEmbed(
+    texts,
+    model = "sentence-transformers/all-MiniLM-L12-v2", 
+    layers = -2,  # second to last layer (default)
+    tokens_select = "[CLS]", # use only [CLS] token
+    dim_name = FALSE,
+    keep_token_embeddings = FALSE
+  )$texts[[1]]
+} 
+
+
+#It makes more sense to pass the text of single words and not the combine per subject since
+# the contex are in effect when it comes to the word embedding of that word- since this is a free association task it should be forged into a non-sensed sentence.
+
+training_set_wth_wordID <- training_set |>
+  
+  # every unique word gets an ID 
+  mutate(wordId = dense_rank(word))
 
 
 
+training_corpus_sbert <- training_set_wth_wordID |>
+  embed_docs(
+    text_col = "word", 
+    model = sbert_embeddings, 
+    id_col = "wordId", 
+    .keep_all = TRUE
+    )
+#Save it as RDS to reduce computation time upon relaunch
+saveRDS(training_corpus_sbert,
+        file = "./rds/training_corpus_sbert.rds")
 
 
 
+depression_ccr <- CES_D_items |> 
+  embed_docs(sbert_embeddings, output_embeddings = TRUE) |> 
+  average_embedding()
+
+
+    
+#getting the Cos Similiarity of each word to the CCR :
+
+WordId_depression_ccr <- training_corpus_sbert |>
+  get_sims(
+    Dim1:Dim384,
+    list(depression = depression_ccr),
+    method = "cosine_squished"
+    )
 
 
 
+#Aggregating it to subject level not word level 
 
 
+subject_cos_sim <- WordId_depression_ccr |>
+  group_by(ID) |>
+  summarise(
+    dep_cos_sim = mean(depression, na.rm = TRUE),
+    dep_sim_sd  = sd(depression, na.rm = TRUE),
+  ) |>
+  ungroup()
 
 
-
-
+# Adding it to our Training set :
+hist(subject_cos_sim$dep_cos_sim)
+training_set <- training_set |> 
+  left_join(subject_cos_sim,
+            by ="ID")
 
 
 
@@ -265,13 +355,7 @@ view(bake(prep(rec, training_set = training_data), NULL))
 
 ```
 
-{in this part we would add the acedemic background that helped us choose our feature and to desgin them in the way we will}
+# Modeling 
 
-You can add options to executable code like this
+## Validation
 
-```{r}
-#| echo: false
-2 * 2
-```
-
-The `echo: false` option disables the printing of code (only output is displayed).
