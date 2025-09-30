@@ -28,6 +28,8 @@ For details about the challenge visit it's Kaggle page: [Depression Prediction C
 
 First and foremost, we will load th data.
 
+# Feature Engineering
+
 ```{r}
 library(tidyverse)
 library(tidymodels)
@@ -384,7 +386,7 @@ feature_engineering_funct <- function(dataset){
   for (q in 1:10) {
     # We are running on the first word given in each chain (cycle - where q_num == 1)
     # getting the prediction of the embedding by the model, adding the embedding to
-    # the q1_words df. The q lop is needed because we compare the cos_sim to DIFFENERT   # word each cycle 
+    # the q1_words df. The q lop is needed because we compare the cos_sim to DIFFENERT word each cycle 
     
     q1_words <- dataset|>
       filter(q_num ==1) |>
@@ -433,7 +435,13 @@ feature_engineering_funct <- function(dataset){
     # creating a mean Distance from prompt to word 1  
     mutate(
       d_0_1_mean = rowMeans(pick(starts_with("d_0_1_c")), na.rm = TRUE)
-    ) |> 
+    ) 
+  
+  #------------ Feature V - XII Semantic Distance [wordn ->wordn+1]-----
+  
+  
+  
+  |> 
   
   #Making that every Subject would have only one datapoint: 
   select(-vary_variables)|> 
@@ -583,10 +591,13 @@ rec <- recipe(matrixScore ~ ., data = training_07) |>
 
   # I'll use KNN imputation so normalization is needed 
   step_normalize(all_numeric_predictors(), id = "norm") |>
-  step_impute_knn(all_predictors(), neighbors = 5) 
+  step_impute_knn(all_predictors(), neighbors = 5) |>
   
   #   # I'll keep in mind that in order for me to interpratate it  because normalization doesn't needed Rnd frst and boosting are not effect by normalization It probably won't hurt but still
-
+  
+  
+  # drop zero-variance columns
+  step_zv(all_predictors())
 
 
   
@@ -621,12 +632,12 @@ rf_grid <-  grid_regular(
 )
 
 ### --------- Tuner ---------
-# rf_tuner <- tune_grid(rf_wf,
-#                      resamples = validation_sets,
-#                      grid = rf_grid,
-#                     metrics = mset_reg)
+ # rf_tuner <- tune_grid(rf_wf,
+ #                      resamples = validation_sets,
+ #                      grid = rf_grid,
+ #                     metrics = mset_reg)
 
-#saveRDS(rf_tuner, file = "./rds/rf_tuner.rds")
+# saveRDS(rf_tuner, file = "./rds/rf_tuner.rds")
 
 rf_tuner <-  readRDS("./rds/rf_tuner.rds")
 
@@ -695,16 +706,25 @@ rf_fit_simpler <- rf_wf |>
 rf_pred <- predict(rf_fit, new_data = training_07) |> 
   bind_cols(training_07)
 
+rf_pred_simpler <- predict(rf_fit_simpler, new_data = training_07) |> 
+  bind_cols(training_07)
+
 mae(rf_pred, truth = matrixScore, estimate = .pred )
 #1 mae     standard         4.80
+
+
 
 rsq(rf_pred, truth = matrixScore, estimate = .pred )
 # 1 rsq     standard       0.95
 
+cor(rf_pred$matrixScore,
+    rf_pred$.pred,
+    method= "pearson" )
+
 # Performance on TRAINING SET: 
           # MAE:  4.80
           # R2: 0.95
-
+          # r: 0.92
 ## ----- Testing the test set -------
 
 test_pred_rnd <- augment(rf_fit, test_03)
@@ -716,8 +736,26 @@ test_pred_rnd |>
       test_pred_rnd$matrixScore,
       method = "pearson")
   
-  #Pearson correlation on test: 0.21
   
+test_pred_rnd_simpler <- augment(rf_fit_simpler,
+                         test_03)
+
+test_pred_rnd |> 
+  mset_reg(matrixScore, .pred)
+
+
+cor(test_pred_rnd$.pred,
+      test_pred_rnd$matrixScore,
+      method = "pearson")
+mae(test_pred_rnd, truth = matrixScore, estimate = .pred )
+rsq(test_pred_rnd, truth = matrixScore, estimate = .pred )
+
+  
+  
+# Performance on TEST SET: 
+          # MAE:  10.4
+          # R2: 0.04
+          # r: 0.21
 
 
 ## ------The  Bootstrap Test --------
@@ -732,11 +770,121 @@ rf_test_comp <- rf_wf |>
 
 ```
 
-## Boosting
+## Booster
 
 ```{r}
 
 
+boost_spec <- boost_tree(
+  mode = "regression",
+  engine = "xgboost",
+  
+  ## Complexity
+  tree_depth = 2, # [1, Inf] limits the depth of each tree
+  min_n = 5, # [1, Inf] don't split if you get less obs in a node
+  
+  
+  loss_reduction = 0, # [0, Inf] node splitting regularization - no need for regulation since I will keep tree depth at 1 
+  
+  ## Gradient
+  learn_rate = 0.1, # [0, 1] learning rate
+  trees = tune(),
+  
+  ## Randomness
+  mtry = 3,  # to help me comparing with Random Forest model and since it is close to the theoretical recommendation when it come to regression sqrt(p)
+  sample_size = tune() # [0, 1] proportion of random data to use in each tree
+)
+
+booster_wf <- workflow(preprocessor = rec |> 
+                         
+                         #Booster doens't know how to dela with nominal and 
+                         #factors so: 
+                           step_dummy(all_nominal_predictors(),
+                                      one_hot = TRUE),
+                       spec = boost_spec)
+
+booester_grid <-  expand_grid(
+  trees= seq(100, 1000, by = 100),
+  sample_size =  seq(0.1, 1, by = 0.1),
+  )
+
+# booster_tuner <- tune_grid(booster_wf,
+#                       resamples = validation_sets,
+#                       grid = booester_grid,
+#                       metrics = mset_reg)
+ saveRDS(booster_tuner,"./rds/booster_tuner")
+ booster_tuner<- readRDS("./rds/booster_tuner")
+ 
+ 
+one_SD_smplsz_boost <-select_by_one_std_err(booster_tuner,
+                                      sample_size,
+                                      metric ="rsq")
+one_SD_tress_boost <- select_by_one_std_err(booster_tuner,
+                      trees,
+                      metric ="rsq")
+
+best_ovrll_boost <- select_best(booster_tuner,
+                      metric ="rsq")
+
+# All is evidant that the best is sample_size=0.1, tree=100
+
+##------- Training and Fitting -------
+
+boost_fit <- booster_wf |>
+  finalize_workflow(parameters = best_ovrll_boost) |> 
+  fit(data = training_07)
+boost_fit 
+
+boost_pred<- predict(boost_fit, training_07) |> 
+  bind_cols(training_07)
+
+ mae(boost_pred,
+     truth =matrixScore ,
+     estimate = .pred)
+ rsq(boost_pred,
+     truth =matrixScore ,
+     estimate = .pred)
+  cor(boost_pred$.pred,
+      boost_pred$matrixScore,
+      method="pearson")
+ 
+
+# Performance on TRAINING SET: 
+
+# MAE:   9.48
+# R2: 0.24
+# r: 0.49  
+ 
+## ----- Testing the test set -------
+
+test_pred_boost <- augment(boost_fit,
+                           test_03)
+
+ mae(test_pred_boost,
+     truth =matrixScore ,
+     estimate = .pred)
+ rsq(test_pred_boost,
+     truth =matrixScore ,
+     estimate = .pred)
+  cor(test_pred_boost$.pred,
+      test_pred_boost$matrixScore,
+      method="pearson")
+  
+
+
+# Performance on TEST SET: 
+
+# MAE:   10.1
+# R2: 0.08
+# r: 0.28
+
+## ------The  Bootstrap Test --------
+
+# This would be serve later on to compare between the two models
+boost_test_comp <- booster_wf |> 
+  finalize_workflow(parameters = best_ovrll_boost)|>
+    fit_resamples(resamples = comparison_sets,
+                  metrics = mset_reg)
 
 
 ```
