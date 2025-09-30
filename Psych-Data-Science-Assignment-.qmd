@@ -462,6 +462,8 @@ feature_engineering_funct <- function(dataset){
 
 # Modeling
 
+## Random Forest
+
 ```{r}
 set.seed(130597)
 
@@ -525,8 +527,17 @@ rec <- recipe(matrixScore ~ ., data = training_07) |>
     
     #since non-white together only serves less than 15% of the data I would create a white column insterad of race indicating that the subject is white or not 
     race = ifelse(race != "White", 0,1),
-    sex = factor(sex),
     
+    #theres only only 'rather not say' sex type so leaving it Male.. 
+    # this is more od a bandaid than a theoretical consideration  
+    sex = case_when(
+      sex == "Rather not say" ~ 1,
+      sex == "Male" ~ 1,
+      sex == "Female" ~ 0),
+    sex = factor(sex),
+    race = factor(race),
+
+
     # ----------- Giving numeric value to income ---------
     
       income_units = case_when(
@@ -542,10 +553,9 @@ rec <- recipe(matrixScore ~ ., data = training_07) |>
       Income_text == "$90,000 to $99,999"     ~ 95000,
       Income_text == "$100,000 to $149,999"   ~ 125000,
       Income_text == "$150,000 or more"       ~ 175000,
-      )
-
-
-  ) |>
+      )) |>
+        
+ 
   # Change race to white for easier unsersatnding
   step_rename(
     White = race
@@ -562,23 +572,22 @@ rec <- recipe(matrixScore ~ ., data = training_07) |>
     race_5,
     race_6,
     race_6_TEXT,
-    ID
+    ID, 
+    # Leaving just the mean distance betwen the first and the second word
+    starts_with("d_0_1_c")
   ) |>
+
   
   
   # -------- Dealing with NA ----------
 
   # I'll use KNN imputation so normalization is needed 
   step_normalize(all_numeric_predictors(), id = "norm") |>
-  step_impute_knn(all_predictors(), neighbors = 5) |>
+  step_impute_knn(all_predictors(), neighbors = 5) 
   
   #   # I'll keep in mind that in order for me to interpratate it  because normalization doesn't needed Rnd frst and boosting are not effect by normalization It probably won't hurt but still
 
 
-  #------- Dummy Variable --------
-    step_dummy(sex,
-               White) 
-  
 
   
 
@@ -607,14 +616,129 @@ rf_grid <-  grid_regular(
   
   #Considering to computation time I would reduce the max number of predictors to 10 
   mtry(range = c(1, 10)),
-  trees(range = c(100, 250)),
+  trees(range = c(100, 500)),
   levels = 5
 )
 
-rf_tuner <- tune_grid(rf_wf,
-                     resamples = validation_sets,
-                     grid = rf_grid,
-                    metrics = mset_reg)
-saveRDS(rf_tuner, file = "./rds/rf_tuner.rds")
+### --------- Tuner ---------
+# rf_tuner <- tune_grid(rf_wf,
+#                      resamples = validation_sets,
+#                      grid = rf_grid,
+#                     metrics = mset_reg)
+
+#saveRDS(rf_tuner, file = "./rds/rf_tuner.rds")
+
+rf_tuner <-  readRDS("./rds/rf_tuner.rds")
+
+
+# --------- Scheming an ploting 
+
+
+
 autoplot(rf_tuner)
+
+
+# when it comes to rmse it seems that the more the merrier hwever the picture is not that clear in rsq , carying greatly and non linearly as a function of number of trees, given that the margins in rmse aren't that big the criterion would be rsq
+
+# Wild guess:  my horse is 175 trees and 3 predictors!
+
+
+## ---- Trees -----
+#Best - one SD
+
+best_oneSD_trees<- select_by_one_std_err(rf_tuner,
+                                      trees,
+                                      metric = "rsq")
+# tree= 100
+#mtry= 1 
+
+
+# ------- number of predictors in each Tree --------
+
+best_oneSD_mtry<- select_by_one_std_err(rf_tuner,
+                                      mtry,
+                                      metric = "rsq")
+# Again: 
+# tree= 100
+#mtry= 1 
+
+# ------ Best overall --------
+best_ovrll<- select_best(rf_tuner,
+                               metric = "rsq")
+# tree= 175
+#mtry= 3
+
+
+# Note to Self- Always check the Y-axis scale before interpreting visual differences. What appears to be a large gap between options might actually be insignificant. 
+
+# In this case since every point counts and we hope to scrach the 0.3 bench mark I would go with mtry=3 and tree=175
+
+
+# Therefore, the selected hyperparameters are:
+#tree = 175
+#mtry = 3
+
+
+
+
+##------- Training and Fitting -------
+
+rf_fit <- rf_wf |>
+  finalize_workflow(parameters = best_ovrll) |> 
+  fit(data = training_07)
+rf_fit 
+
+rf_fit_simpler <- rf_wf |>
+  finalize_workflow(parameters = best_oneSD_mtry) |> 
+  fit(data = training_07)
+
+rf_pred <- predict(rf_fit, new_data = training_07) |> 
+  bind_cols(training_07)
+
+mae(rf_pred, truth = matrixScore, estimate = .pred )
+#1 mae     standard         4.80
+
+rsq(rf_pred, truth = matrixScore, estimate = .pred )
+# 1 rsq     standard       0.95
+
+# Performance on TRAINING SET: 
+          # MAE:  4.80
+          # R2: 0.95
+
+## ----- Testing the test set -------
+
+test_pred_rnd <- augment(rf_fit, test_03)
+
+test_pred_rnd |> 
+  mset_reg(matrixScore, .pred)
+
+  cor(test_pred_rnd$.pred,
+      test_pred_rnd$matrixScore,
+      method = "pearson")
+  
+  #Pearson correlation on test: 0.21
+  
+
+
+## ------The  Bootstrap Test --------
+
+# This would be serve later on to compare between the two models
+rf_test_comp <- rf_wf |> 
+  finalize_workflow(parameters = best_ovrll)|>
+    fit_resamples(resamples = comparison_sets,
+                  metrics = mset_reg)
+
+            
+
 ```
+
+## Boosting
+
+```{r}
+
+
+
+
+```
+
+\
