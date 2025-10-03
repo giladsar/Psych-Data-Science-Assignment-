@@ -151,7 +151,5 @@ This project demonstrates that:
 
 * * *
 
-> “From free associations to depression scores —  
-> this solution turns spontaneous thought into structured prediction.”
 
 
