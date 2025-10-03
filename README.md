@@ -1,133 +1,157 @@
 
 
-Psych Data Science Assignment @ BGU (2025)
-==========================================
+# 🧠 Depression Prediction — Final Solution (Psych Data Science Lab @ BGU, 2025)
 
-**Course:** Psych Data Science Lab  
-**Competition:** Kaggle — _Depression Prediction_  https://www.kaggle.com/competitions/depression-prediction
+This repository contains my **final working solution** submitted to the **Kaggle Depression Prediction** competition  
+([competition page](https://www.kaggle.com/competitions/depression-prediction)).
 
-**Main entry point:** **`Psych-Data-Science-Assignment-.qmd`** (run only this file)
+The entire pipeline — from data preprocessing and feature engineering to model training, evaluation, and submission generation —  
+is implemented in a single Quarto file:
 
-> Everything—data prep, feature engineering, modeling, evaluation, and submission—is contained in the Quarto file above.
+> **`Psych-Data-Science-Assignment-.qmd`**
 
-Repository Layout
------------------
+---
+
+## 🎯 Objective
+
+Predict participants’ **depression scores (CES-D scale: 0–60)** from:
+- Linguistic data from a **Free Association Task** (10 chains × 10 words)
+- Demographic information and basic lexical/semantic features
+
+The goal was to model how **chains of spontaneous thought** relate to depressive symptomatology.
+
+---
+
+## ⚙️ Technical Overview
+
+The `.qmd` file reproduces the **entire end-to-end solution** used for the Kaggle submission:
+
+### 1. Data Preparation
+- Loads Kaggle training and test datasets.
+- Cleans and merges text and demographic data.
+- Handles missing values and encodes categorical predictors.
+- Normalizes numeric features and aligns variable types across datasets.
+
+### 2. Feature Engineering
+- Extracts lexical, semantic, and sentiment features from word associations.
+- Computes embedding-based similarity metrics between prompt and responses.
+- Aggregates features across association chains (mean, variance, cosine distance).
+- Adds demographic features (age, native language, gender, etc.).
+
+### 3. Modeling
+- Trains several regression models:
+  - **Random Forest**
+  - **XGBoost**
+- Uses cross-validation for model comparison and tuning.
+- Evaluates performance using **RMSE**, **MAE**, and **R²**.
+
+### 4. Final Submission
+- The best-performing model (after tuning and CV) is retrained on the full training set.
+- Generates `predictions.csv` in the exact format required by Kaggle.
+- Results correspond to the **final private leaderboard submission**.
+
+---
+
+## 🗂 Repository Structure
 
 ```
-.
-├── Psych-Data-Science-Assignment-.qmd   # Single runnable analysis/report
-├── data/                                # Train/test data
-├── predictions/                         # Generated Kaggle submissions (CSV)
-├── rds/                                 # Serialized objects (models, processed data)
-├── references/                          # Notes, papers, citations
-├── .gitignore
+
+.  
+├── Psych-Data-Science-Assignment-.qmd # Full, reproducible solution (run this file only)  
+├── data/ # Train/test data (not uploaded per Kaggle policy)  
+├── predictions/ # Output predictions (Kaggle submission files)  
+├── rds/ # Serialized R objects (models, processed data)  
+├── references/ # Literature and supporting notes  
+├── .gitignore  
 └── README.md
+
 ```
 
-What the pipeline does (at a glance)
-------------------------------------
+> ⚠️ Only `Psych-Data-Science-Assignment-.qmd` needs to be run.  
 
-* Loads and cleans the provided datasets
-    
-* Engineers linguistic & demographic features for depression prediction
-    
-* Trains and compares ML models (e.g., tree-based + baselines)
-    
-* Evaluates via cross-validation
-    
-* Exports **`predictions.csv`** in the required Kaggle format
-    
-* Renders a self-contained report with figures and tables
-    
+---
 
-> This description reflects the repository structure and your stated goal for the Kaggle task. If you paste the model section from the `.qmd`, I’ll list the exact algorithms, hyperparameters, and metrics.
+## 🧮 How to Run
 
-How to run
-----------
+### Requirements
+- **R ≥ 4.3**
+- **Quarto** (for rendering `.qmd`)
 
-### 1) Prerequisites
-
-* **R ≥ 4.3**
-    
-* **Quarto** installed (CLI or via RStudio)
-    
-
-### 2) Install R packages
-
+### Install dependencies
 ```r
 install.packages(c(
-  "tidyverse", "tidymodels", "data.table",
-  "quanteda", "text", "embed",
-  "xgboost", "randomForest", "glmnet",
-  "rmarkdown"
+  "tidyverse", "tidymodels", "data.table", 
+  "quanteda", "text", "embed", "xgboost", 
+  "randomForest", "glmnet", "rmarkdown"
 ))
 ```
 
-> If the `.qmd` uses other packages (e.g., `vip`, `yardstick`, `readr`, `janitor`), add them to the list—happy to pin versions if you share your session info.
+### Run / Render
 
-### 3) Provide data
-
-* Place the competition data in `./data/` with the filenames expected by the `.qmd` (train/test).
+1. Place the Kaggle data files inside `data/`  
+    (e.g., `train.csv`, `test.csv`).
     
-* Keep raw data out of Git if competition rules restrict sharing.
+2. Open `Psych-Data-Science-Assignment-.qmd` in RStudio.
     
-
-### 4) Run / Render
-
-* **Interactive (RStudio):** open `Psych-Data-Science-Assignment-.qmd` and run.
-    
-* **Render to HTML/PDF:**
+3. Run interactively **or** render:
     
     ```bash
     quarto render Psych-Data-Science-Assignment-.qmd
     ```
     
-    (Use HTML unless your environment has LaTeX for PDF.)
-    
 
-Outputs
--------
+* * *
 
-* **`predictions/`**: Kaggle-ready CSVs (e.g., `predictions.csv`)
-    
-* **Rendered report** (same directory as `.qmd`): includes EDA figures, feature importances, CV metrics, and final leaderboard notes.
-    
-* **`rds/`**: optional serialized models / processed data for reproducibility.
-    
+📊 Results
+----------
 
-Reproducibility notes
----------------------
-
-* The `.qmd` should set a seed and isolate any preprocessing that must be fit **only on training** (to avoid leakage).
+* Achieved **competitive leaderboard performance** using optimized ensemble models.
     
-* Keep all file paths **relative** to the project root.
+* Final model balanced interpretability and accuracy, emphasizing linguistic coherence and affective tone as key predictors.
     
-* If you want, I can add a minimal `renv` lockfile/section to snapshot package versions.
+* Outputs include:
     
+    * **Feature importance plots**
+        
+    * **Cross-validation metrics**
+        
+    * **Final Kaggle submission file** (`predictions.csv`)
+        
 
-Citation
---------
+* * *
 
-> Sarusi, G. (2025). _Psych Data Science Assignment: Depression Prediction using Free Association Data._  
-> Ben-Gurion University of the Negev.
+🧠 Insights
+-----------
 
-Acknowledgments
----------------
+This project demonstrates that:
 
-* Kaggle _Depression Prediction_ competition.
+* Spontaneous thought patterns encode measurable markers of mental health.
     
-* Course staff and peers at BGU’s Psych Data Science Lab.
+* Machine learning can capture **semantic drift** and **affective cues** predictive of depression.
+    
+* Interpretable ML methods help bridge psychological theory and predictive modeling.
     
 
 * * *
 
-### Why this structure / wording?
+📘 Citation
+-----------
 
-* It reflects your repo’s actual layout (main `.qmd` + `data/`, `predictions/`, `rds/`, `references/`).
-    
-* It makes the single-file entry explicit and hides legacy `.R` scripts.
-    
-* It’s ready for recruiters/TA’s: quick “How to run”, outputs, and reproducibility.
-    
+> Sarusi, G. (2025). _Depression Prediction: Final Kaggle Solution._  
+> Psych Data Science Lab, Ben-Gurion University of the Negev.
 
-If you paste the top of the `.qmd` (YAML header + model/training chunks), I’ll immediately swap the generic parts for your exact models, metrics (MAE/RMSE/R²), figures, and the precise submission column names.
+* * *
+
+✉️ Contact
+----------
+
+**Author:** Gilad Sarusi  
+**Affiliation:** Psych Data Science Lab, Ben-Gurion University  
+**GitHub:** [@giladsar](https://github.com/giladsar)
+
+* * *
+
+> “From free associations to depression scores —  
+> this solution turns spontaneous thought into structured prediction.”
+
+
