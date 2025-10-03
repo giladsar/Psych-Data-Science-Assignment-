@@ -603,7 +603,7 @@ rec <- recipe(matrixScore ~ ., data = training_07) |>
   
 
 # See if the steps done correctly 
-tasting <- bake(prep(rec, training_set = training_data), NULL)
+tasting <- bake(prep(rec, training_set = training_07), NULL)
 
 view(tasting)
 
@@ -885,8 +885,94 @@ boost_test_comp <- booster_wf |>
   finalize_workflow(parameters = best_ovrll_boost)|>
     fit_resamples(resamples = comparison_sets,
                   metrics = mset_reg)
+  
+  
 
 
 ```
+
+# Comparison
+
+```{r}
+
+library(knitr)
+
+Booster_rnds_metrics_com <- bind_rows(
+  "rf" = collect_metrics(rf_test_comp, summarize = FALSE),
+  "boosting" = collect_metrics(boost_test_comp, summarize = FALSE),
+  
+  .id = "Model"
+) |>
+  mutate(
+    Model = factor(Model, levels = c("rf", "boosting"))
+  )
+
+
+Booster_rnds_metrics_com |>
+  group_by(id, .metric) |>
+  mutate(
+    best_model = case_match(.metric,
+                            "rmse" ~ Model[which.min(.estimate)],
+                            "rsq" ~ Model[which.max(.estimate)])
+  ) |>
+  ggplot(aes(Model, .estimate, color = Model)) +
+  facet_wrap(facets = vars(.metric), scales = "free") +
+  stat_summary(size = 1, 
+               position = position_nudge(0.1), 
+               show.legend = FALSE) + 
+  geom_point() +
+  geom_line(aes(group = id, color = best_model))
+
+
+```
+
+# OOS Predictions
+
+```{r}
+
+# Creating the predictions for the real TEST!
+
+
+#adding the features: 
+
+fe_training_set<- feature_engineering_funct(training_set)
+fe_test_set <- feature_engineering_funct(test_set|> mutate(race_5 = NA))
+
+
+# -------- Random Forest ----------
+
+#Train on full training set
+final_fit_rf <-  rf_wf |>
+  finalize_workflow(parameters = best_ovrll) |> 
+  fit(data = fe_training_set)
+final_fit_rf 
+
+
+REAL_test_pred_rnd <- augment(final_fit_rf, fe_test_set) |>
+  select(ID,.pred) |>
+  rename(matrixScore = .pred) |>
+  arrange(ID)
+
+# -------- Boosting ----------
+final_boost_fit <-  booster_wf |>
+  finalize_workflow(parameters = best_ovrll_boost) |> 
+  fit(data = fe_training_set)
+final_boost_fit 
+
+
+
+REAL_test_pred_boost <- augment(final_boost_fit, fe_test_set)|>
+  select(ID,.pred) |>
+  rename(matrixScore = .pred) |>
+  arrange(ID)
+
+
+# Write prediction files with correct header
+write_csv(REAL_test_pred_rnd, "./predictions/predictions_random_forest.csv")
+write_csv(REAL_test_pred_boost, "./predictions/predictions_boost.csv")
+
+```
+
+\
 
 \
