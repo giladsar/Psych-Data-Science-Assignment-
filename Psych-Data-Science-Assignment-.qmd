@@ -435,14 +435,13 @@ feature_engineering_funct <- function(dataset){
     # creating a mean Distance from prompt to word 1  
     mutate(
       d_0_1_mean = rowMeans(pick(starts_with("d_0_1_c")), na.rm = TRUE)
-    ) 
+    ) |>
   
   #------------ Feature V - XII Semantic Distance [wordn ->wordn+1]-----
   
   
   
-  |> 
-  
+
   #Making that every Subject would have only one datapoint: 
   select(-vary_variables)|> 
   distinct(ID, .keep_all = TRUE)
@@ -479,7 +478,8 @@ set.seed(130597)
 
 fe_training_set<- feature_engineering_funct(training_set)
 
-  
+write_csv(fe_training_set, "./fe_training_set.csv")
+
 
 
 splits <- initial_split(fe_training_set,
