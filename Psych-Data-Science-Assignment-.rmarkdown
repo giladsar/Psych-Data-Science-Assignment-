@@ -15,6 +15,8 @@ fig-format: png
 editor: visual
 ---
 
+
+
 # The Objective
 
 Can chains of spontaneous thought reveal mental health? In this competition, you'll work with rich psychological data to predict depression levels from free association patterns and demographic variables.
@@ -24,6 +26,8 @@ Using a dataset of participants who completed a depression questionnaire (CES-D)
 For details about the challenge visit it's Kaggle page: [Depression Prediction Competitio](https://www.kaggle.com/competitions/depression-prediction/overview)n
 
 # Feature Engineering
+
+
 
 ```{r}
 library(tidyverse)
@@ -468,7 +472,11 @@ fe_training_set<- feature_engineering_funct(training_set)
 
 ```
 
+
+
 # Visual representation of correlations
+
+
 
 ```{r}
 #| label: Visual
@@ -525,9 +533,13 @@ combined
 
 ```
 
+
+
 # Modeling
 
 ## Random Forest
+
+
 
 ```{r}
 set.seed(130597)
@@ -827,7 +839,11 @@ rf_test_comp <- rf_wf |>
 
 ```
 
+
+
 ## Booster
+
+
 
 ```{r}
 
@@ -948,7 +964,11 @@ boost_test_comp <- booster_wf |>
 
 ```
 
+
+
 # Comparison
+
+
 
 ```{r}
 
@@ -983,7 +1003,11 @@ Booster_rnds_metrics_com |>
 
 ```
 
+
+
 # OOS Predictions
+
+
 
 ```{r}
 
@@ -1030,6 +1054,9 @@ write_csv(REAL_test_pred_boost, "./predictions/predictions_boost.csv")
 
 ```
 
+
+
 \
 
 \
+
