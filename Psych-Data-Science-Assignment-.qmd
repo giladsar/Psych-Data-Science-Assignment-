@@ -1,17 +1,15 @@
 ---
 title: "Psych Data Science Lab @ BGU 2025 -Group GLAS"
 author: "Gilad Sarusi, Lior Lipa, Adi Bitan and Sivan Hayek"
-output: 
-  pagedown::html_paged:
-      self_contained: true
-      paged-footnotes: true
-      
-format: 
+format:
   html:
     toc: true
     number-sections: true
-fig-format: png
-
+    self-contained: true
+    browse: true
+execute:
+  warning: false
+  message: false
 editor: visual
 ---
 
@@ -1029,7 +1027,3 @@ write_csv(REAL_test_pred_rnd, "./predictions/predictions_random_forest.csv")
 write_csv(REAL_test_pred_boost, "./predictions/predictions_boost.csv")
 
 ```
-
-\
-
-\
